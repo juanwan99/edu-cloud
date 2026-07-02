@@ -49,8 +49,13 @@ async def assign_grading_task(
     scope = ctx.deps.data_scope
     async with ctx.deps.get_db() as db:
         result = await GradingAssignmentService.auto_assign(
-            db, exam_id, subject_id, question_ids, teacher_ids,
-            scope.school_id, total_count_per_question,
+            db,
+            exam_id=exam_id,
+            subject_id=subject_id,
+            question_ids=question_ids,
+            teacher_ids=teacher_ids,
+            school_id=scope.school_id,
+            total_count_per_question=total_count_per_question,
         )
     return json.dumps(result, ensure_ascii=False, default=str)
 
