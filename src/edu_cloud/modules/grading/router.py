@@ -945,9 +945,23 @@ async def create_grading_task(
         existing = 0
         for rt in running_tasks:
             try:
-                rt_ids = set(_json.loads(rt.question_ids)) if isinstance(rt.question_ids, str) else set(rt.question_ids)
+                parsed_ids = (
+                    _json.loads(rt.question_ids)
+                    if isinstance(rt.question_ids, str)
+                    else rt.question_ids
+                )
+                if not isinstance(parsed_ids, list):
+                    raise ValueError("question_ids is not a list")
+                rt_ids = set(parsed_ids)
             except Exception:
-                rt_ids = set()
+                logger.error(
+                    "create_grading_task: unreadable running task question_ids, task=%s subject=%s school=%s",
+                    rt.id, req.subject_id, school_id, exc_info=True,
+                )
+                raise HTTPException(
+                    409,
+                    "Existing grading task has unreadable question_ids; resolve it before starting a new batch task",
+                )
             if req_set & rt_ids:
                 existing = 1
                 break

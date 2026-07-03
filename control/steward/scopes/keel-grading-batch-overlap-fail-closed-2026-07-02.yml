@@ -1,0 +1,23 @@
+schema: steward-pr-scope.v1
+scope_id: keel-grading-batch-overlap-fail-closed-2026-07-02
+owner: codex
+allowed_paths:
+  - src/edu_cloud/modules/grading/router.py
+  - tests/test_api_exam/test_grading_task.py
+  - control/steward/scopes/keel-grading-batch-overlap-fail-closed-2026-07-02.yml
+forbidden_paths:
+  - .github/
+  - scripts/
+  - frontend/
+  - docs/
+  - deploy/
+  - alembic/
+  - AGENTS.md
+  - CLAUDE.md
+  - src/edu_cloud/modules/grading/service.py
+  - src/edu_cloud/modules/grading/assignment_service.py
+  - src/edu_cloud/modules/grading/quality_service.py
+compatibility_paths: []
+status: active
+created_at: "2026-07-02T23:45:00+08:00"
+expires_at: "2026-07-09T23:59:00+08:00"
